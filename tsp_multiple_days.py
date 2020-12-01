@@ -173,13 +173,16 @@ else:
     time = time_dimension.CumulVar(index)
     count = count_dimension.CumulVar(index)
     node = manager.IndexToNode(index)
-
-    result['Scheduled'].append([node, solution.Value(count), solution.Min(time)/3600, solution.Max(time)/3600])
+    solution_min = str(int(solution.Min(time)/3600)) + ":" + str(int(float(str(float(str(solution.Min(time)/3600-int(solution.Min(time)/3600))[1:])*60))))
+    solution_max = str(int(solution.Max(time)/3600)) + ":" + str(int(float(str(float(str(solution.Max(time)/3600-int(solution.Max(time)/3600))[1:])*60))))
+    result['Scheduled'].append([node, solution.Value(count), solution_min, solution_max])
     index = solution.Value(routing.NextVar(index))
 
   time = time_dimension.CumulVar(index)
   count = count_dimension.CumulVar(index)
-  result['Scheduled'].append([manager.IndexToNode(index), solution.Value(count), solution.Min(time)/3600, solution.Max(time)/3600])
+  solution_min = str(int(solution.Min(time)/3600)) + ":" + str(int(float(str(float(str(solution.Min(time)/3600-int(solution.Min(time)/3600))[1:])*60))))
+  solution_max = str(int(solution.Max(time)/3600)) + ":" + str(int(float(str(float(str(solution.Max(time)/3600-int(solution.Max(time)/3600))[1:])*60))))
+  result['Scheduled'].append([manager.IndexToNode(index), solution.Value(count), solution_min, solution_max])
 
   print('Dropped')
   print(result['Dropped'])
