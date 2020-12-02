@@ -9,7 +9,7 @@ Matrix = [[0,1706.7,526.4,0,1497,1136.3,1445.8,1728.3,864.4,1362.3,1443.2,1410,8
 # Day 2 - End at 6:00pm at Location 4 (index 3)
 Windows = [[28800, 28800], [57600, 57600], [21600, 21600], [64800, 64800], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400]]
 
-Durations = [0, 0, 0, 0, 0, 0, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 3600, 3600, 3600, 3600, 3600]
+Durations = [0, 0, 0, 0, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 3600, 3600, 3600, 3600, 3600, 3600, 3600]
 
 Penalties = [576460752303423487, 576460752303423487, 576460752303423487, 576460752303423487, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000]
 
@@ -29,48 +29,12 @@ for node in range(NUM_DAYS * 2, len(Matrix)):
 
 def transit_callback(from_index, to_index):
 
-  # Returns the travel time between the two nodes.
-  # Convert from routing variable Index to time matrix NodeIndex.
-  from_node = manager.IndexToNode(from_index)
-  to_node = manager.IndexToNode(to_index)
-
-  # prevent movement from start nodes to start nodes
-  if from_node in START_NODES:
-    if to_node in START_NODES:
-      return 576460752303423487
-
-  # prevent movement from start nodes to end nodes
-  if from_node in START_NODES:
-    if to_node in END_NODES:
-      return 576460752303423487
-
-  # prevent movement from end nodes to end nodes
-  if from_node in END_NODES:
-    if to_node in END_NODES:
-      return 576460752303423487
-
-  # prevent movement from end nodes to non start nodes
-  if from_node in END_NODES:
-    if to_node  in START_NODES:
-      return 0
-    else:
-      return 576460752303423487
-
-  return Matrix[from_node][to_node]
-
-def time_callback(from_index, to_index):
-
   # Returns the travel time plus service time between the two nodes.
   # Convert from routing variable Index to time matrix NodeIndex.
   from_node = manager.IndexToNode(from_index)
   to_node = manager.IndexToNode(to_index)
 
-  if from_node in END_NODES:
-    Reset = Windows[from_node][1]
-  else:
-    Reset = 0
-
-  return Matrix[from_node][to_node] + Durations[from_node] - Reset
+  return Matrix[from_node][to_node] + Durations[from_node]
 
 # Create the routing index manager.
 manager = pywrapcp.RoutingIndexManager(len(Matrix), 1, [0], [1])
@@ -84,29 +48,16 @@ transit_callback_index = routing.RegisterTransitCallback(transit_callback)
 # Set the arc cost evaluator for all vehicles
 routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
-# Register the Time Callback.
-time_callback_index = routing.RegisterTransitCallback(time_callback)
-
 # Add Time Windows constraint.
 routing.AddDimension(
-  time_callback_index,
+  transit_callback_index,
   86400, # An upper bound for slack (the wait times at the locations).
-  86400, # An upper bound for the total time over each vehicle's route.
-  False,
+  86400 * NUM_DAYS, # An upper bound for the total time over each vehicle's route.
+  False, # Determine whether the cumulative variable is set to zero at the start of the vehicle's route.
   'Time')
 time_dimension = routing.GetDimensionOrDie('Time')
 
-# Get rid of slack for all regular nodes
-# for node in range(len(START_NODES) + len(END_NODES), len(Matrix)):
-#   index = manager.NodeToIndex(node)
-#   time_dimension.SlackVar(index).SetValue(0)
-
-# Get rid of slack for all start nodes
-# for node in START_NODES:
-#   index = manager.NodeToIndex(node)
-#   time_dimension.SlackVar(index).SetValue(0)
-
-# Allow all regular nodes to be droppable.
+# Allow all non-start and non-end nodes to be droppable.
 for node in range(len(START_NODES) + len(END_NODES), len(Matrix)):
   routing.AddDisjunction([manager.NodeToIndex(node)], Penalties[node])
 
@@ -114,60 +65,68 @@ for node in range(len(START_NODES) + len(END_NODES), len(Matrix)):
 for location_index, time_window in enumerate(Windows):
   if location_index in REGULAR_NODES:
     index = manager.NodeToIndex(location_index)
-    time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1])
+    time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1] + ((NUM_DAYS - 1) * 86400))
 
-# TODO! - I think this needs to be handled differently for each day
-# Add time window constraints for start node.
+    for Day in range(NUM_DAYS - 1):
+      time_dimension.CumulVar(index).RemoveInterval(time_window[1] + (Day * 86400), time_window[0] + ((Day + 1) * 86400))
+
+# Add time window constraints for start and end nodes.
+# TODO: This also needs to be done for each additional day
 index = routing.Start(0)
 time_dimension.CumulVar(index).SetRange(Windows[0][0],Windows[0][1])
 index = routing.End(0)
-time_dimension.CumulVar(index).SetRange(Windows[1][0],Windows[1][1])
+time_dimension.CumulVar(index).SetRange(
+  Windows[1][0] + ((NUM_DAYS - 1) * 86400),
+  Windows[1][1] + ((NUM_DAYS - 1) * 86400))
+
+# Instantiate route start and end times to produce feasible times
+routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.Start(0)))
+routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.End(0)))
 
 # Setting first solution heuristic. 
 search_parameters = pywrapcp.DefaultRoutingSearchParameters()
-search_parameters.first_solution_strategy = (routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION)
+search_parameters.first_solution_strategy = (routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC)
 
 # Setting local search metaheuristics:
 search_parameters.local_search_metaheuristic = (routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH)
-search_parameters.time_limit.seconds = 15
+search_parameters.time_limit.seconds = 5
 search_parameters.log_search = False
 
-# Solve the problem.
+# Solve the problem
 solution = routing.SolveWithParameters(search_parameters)
-if not solution:
-  print("no solution found")
-else:
-  print("solution found.  Objective value is ",solution.ObjectiveValue())
 
-  # Print the results
-  result = {
-    'Dropped': [],
-    'Scheduled': []
-  }
+# Print the results
+print(f"Objective: {solution.ObjectiveValue()}")
 
-  # Return the dropped locations
-  for index in range(routing.Size()):
-    if routing.IsStart(index) or routing.IsEnd(index):
-      continue
-    node = manager.IndexToNode(index)
-    if node in END_NODES or node in START_NODES:
-      continue
-    if solution.Value(routing.NextVar(index)) == index:
-      result['Dropped'].append(node)
+# Return the dropped locations
+dropped = []
+for node in range(routing.Size()):
+  if routing.IsStart(node) or routing.IsEnd(node):
+    continue
+  if solution.Value(routing.NextVar(node)) == node:
+    dropped.append(manager.IndexToNode(node))
+print(f"droped: {dropped}")
 
-  # Return the scheduled locations
-  time = 0
-  index = routing.Start(0)
-  while not routing.IsEnd(index):
-    time = time_dimension.CumulVar(index)
-    result['Scheduled'].append([manager.IndexToNode(index), solution.Min(time), solution.Max(time)])
-    index = solution.Value(routing.NextVar(index))
+# Return the scheduled locations
+index = routing.Start(0)
+plan_output = 'Route for vehicle 0:\n'
+while not routing.IsEnd(index):
   time = time_dimension.CumulVar(index)
-  result['Scheduled'].append([manager.IndexToNode(index), solution.Min(time), solution.Max(time)])
-
-  print('Dropped')
-  print(result['Dropped'])
-
-  print('Scheduled')
-  for line in result['Scheduled']:
-    print(line)
+  tw_min = solution.Min(time)
+  if tw_min > 86400:
+    tw_min = f"{tw_min%86400}+1day"
+  tw_max = solution.Max(time)
+  if tw_max > 86400:
+    tw_max = f"{tw_max%86400}+1day"
+  plan_output += f'{manager.IndexToNode(index)} [{tw_min};{tw_max}] -> '
+  index = solution.Value(routing.NextVar(index))
+time = time_dimension.CumulVar(index)
+tw_min = solution.Min(time)
+tw_max = solution.Max(time)
+if tw_min > 86400:
+  tw_min = f"{tw_min%86400}+1day"
+tw_max = solution.Max(time)
+if tw_max > 86400:
+  tw_max = f"{tw_max%86400}+1day"
+plan_output += f'{manager.IndexToNode(index)} [{tw_min};{tw_max}]'
+print(plan_output)
