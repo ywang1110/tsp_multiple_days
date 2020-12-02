@@ -7,7 +7,7 @@ Matrix = [[0,1706.7,526.4,0,1497,1136.3,1445.8,1728.3,864.4,1362.3,1443.2,1410,8
 # Day 1 - End at 4:00pm at Location 2 (index 1)
 # Day 2 - Start at 6:00am at Location 3 (index 2)
 # Day 2 - End at 6:00pm at Location 4 (index 3)
-Windows = [[28800, 28800], [57600, 57600], [21600, 21600], [64800, 64800], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400], [0, 86400]]
+Windows = [[28800, 28800], [57600, 57600], [21600, 21600], [64800, 64800], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600]]
 
 Durations = [0, 0, 0, 0, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 3600, 3600, 3600, 3600, 3600, 3600, 3600]
 
@@ -65,10 +65,24 @@ for node in range(len(START_NODES) + len(END_NODES), len(Matrix)):
 for location_index, time_window in enumerate(Windows):
   if location_index in REGULAR_NODES:
     index = manager.NodeToIndex(location_index)
-    time_dimension.CumulVar(index).SetRange(time_window[0], time_window[1] + ((NUM_DAYS - 1) * 86400))
 
-    for Day in range(NUM_DAYS - 1):
-      time_dimension.CumulVar(index).RemoveInterval(time_window[1] + (Day * 86400), time_window[0] + ((Day + 1) * 86400))
+    # Add the range between the start of the first day and the end of the last day
+    time_dimension.CumulVar(index).SetRange(0, 86400 * NUM_DAYS)
+
+    for Day in range(NUM_DAYS):
+
+      # Remove the range between the start of the day and the start of work
+      time_dimension.CumulVar(index).RemoveInterval(Day * 86400, Windows[Day * 2][0] + (Day * 86400))
+
+      # Remove the range between the start of the day and the start of location
+      time_dimension.CumulVar(index).RemoveInterval(Day * 86400, time_window[0] + (Day * 86400))
+
+      # Remove the range between the end of work and the end of the day
+      time_dimension.CumulVar(index).RemoveInterval(Windows[(Day * 2) + 1][0] + (Day * 86400), 86400 + (Day * 86400))
+
+      # Remove the range between the end of location and the end of the day
+      time_dimension.CumulVar(index).RemoveInterval(time_window[1] + (Day * 86400), 86400 + (Day * 86400))
+
 
 # Add time window constraints for start and end nodes.
 # TODO: This also needs to be done for each additional day
