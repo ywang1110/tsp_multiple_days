@@ -7,7 +7,7 @@ I am aiming to:
 - Be able to specify the start location and end location for each day.
 - Be able to specify the start time and end time for each day.
 
-I have a set of 60 locations. For every day I want to include in my range of days for optimization, I prepend the start and end location to the matrix. So if I want to optimize for two days, I would have a total of 64 locations in my matrix.
+I have a set of 40 locations. For every day I want to include in my range of days for optimization, I prepend the start and end location to the matrix. So if I want to optimize for two days, I would have a total of 44 locations in my matrix.
 
 I want to allow location to be dropped if there is no feasible solution - in fact I expect this to be the case fairly often.
 
