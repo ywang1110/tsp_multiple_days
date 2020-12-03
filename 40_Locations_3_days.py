@@ -13,6 +13,8 @@ Matrix = [[0,1706.7,1418.3,948.1,526.4,0,1497,1136.3,1445.8,1728.3,864.4,1362.3,
 # Day 3 - End at 2:00pm at Location 6 (index 5)
 NUM_DAYS = 3
 one_day = 86400
+one_hour = 3600
+one_minute = 60
 
 Windows = [
         [28800, 28800], [57600, 57600], # start/end day 0
@@ -63,7 +65,7 @@ def transit_callback(from_index, to_index):
 
 # Create the routing index manager.
 # Start Depot is the index of the start of the first day i.e. 0.
-# End Depot is the index of the end of the last day i.e. (2*NUM_DAYS - 1). 
+# End Depot is the index of the end of the last day i.e. (2*NUM_DAYS - 1).
 manager = pywrapcp.RoutingIndexManager(len(Matrix), 1, [0], [2*NUM_DAYS-1])
 
 # Create Routing Model.
@@ -169,29 +171,32 @@ for node in range(routing.Size()):
     dropped.append(manager.IndexToNode(node))
 print(f"droped: {dropped}")
 
+def time2date(time):
+  "convert time in second to [day, hour, minute, seconds]"
+  days = time // one_day
+  hours = (time - days*one_day) // one_hour
+  minutes = (time - days*one_day - hours*one_hour) // one_minute
+  seconds =  time - days*one_day - hours*one_hour - minutes*one_minute
+  return [days, hours, minutes, seconds]
+
 # Return the scheduled locations
 index = routing.Start(0)
 plan_output = 'Route for vehicle 0:\n'
 while not routing.IsEnd(index):
+  plan_output += f'{manager.IndexToNode(index)} '
   time = time_dimension.CumulVar(index)
   tw_min = solution.Min(time)
-  days = math.floor(tw_min/86400)
-  if tw_min > 86400:
-    tw_min = f"{tw_min%86400}+{days}day"
+  [days, hours, minutes, seconds] = time2date(tw_min)
+  plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
   tw_max = solution.Max(time)
-  days = math.floor(tw_max/86400)
-  if tw_max > 86400:
-    tw_max = f"{tw_max%86400}+{days}day"
-  plan_output += f'{manager.IndexToNode(index)} [{tw_min};{tw_max}] -> '
+  [days, hours, minutes, seconds] = time2date(tw_max)
+  plan_output += f'{days}d {hours}:{minutes}:{seconds}] -> '
   index = solution.Value(routing.NextVar(index))
 time = time_dimension.CumulVar(index)
 tw_min = solution.Min(time)
-days = math.floor(tw_min/86400)
-if tw_min > 86400:
-  tw_min = f"{tw_min%86400}+{days}day"
+[days, hours, minutes, seconds] = time2date(tw_min)
+plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
 tw_max = solution.Max(time)
-days = math.floor(tw_max/86400)
-if tw_max > 86400:
-  tw_max = f"{tw_max%86400}+{days}day"
-plan_output += f'{manager.IndexToNode(index)} [{tw_min};{tw_max}]'
+[days, hours, minutes, seconds] = time2date(tw_max)
+plan_output += f'{days}d {hours}:{minutes}:{seconds}]'
 print(plan_output)
