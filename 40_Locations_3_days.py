@@ -36,7 +36,7 @@ max_int = one_day * NUM_DAYS
 Penalties = [
         max_int, max_int, # day 0
         max_int, max_int, # day 1
-        max_int, max_int, # day 1
+        max_int, max_int, # day 2
         100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000, 100000,]
 
 
@@ -62,6 +62,8 @@ def transit_callback(from_index, to_index):
   return Matrix[from_node][to_node] + Durations[from_node]
 
 # Create the routing index manager.
+# Start Depot is the index of the start of the first day i.e. 0.
+# End Depot is the index of the end of the last day i.e. (2*NUM_DAYS - 1). 
 manager = pywrapcp.RoutingIndexManager(len(Matrix), 1, [0], [2*NUM_DAYS-1])
 
 # Create Routing Model.
