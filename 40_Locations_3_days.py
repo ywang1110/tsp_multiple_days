@@ -192,6 +192,8 @@ while not routing.IsEnd(index):
   [days, hours, minutes, seconds] = time2date(tw_max)
   plan_output += f'{days}d {hours}:{minutes}:{seconds}] -> '
   index = solution.Value(routing.NextVar(index))
+  if manager.IndexToNode(index) < 2*NUM_DAYS and manager.IndexToNode(index) & 1 == 0:
+      plan_output += '\n\n'
 time = time_dimension.CumulVar(index)
 tw_min = solution.Min(time)
 [days, hours, minutes, seconds] = time2date(tw_min)
