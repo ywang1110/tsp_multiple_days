@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from ortools.constraint_solver import pywrapcp
 from ortools.constraint_solver import routing_enums_pb2
 import sys
@@ -55,13 +56,11 @@ for node in range(NUM_DAYS * 2, len(Matrix)):
   REGULAR_NODES.append(node)
 
 def transit_callback(from_index, to_index):
-
   # Returns the travel time plus service time between the two nodes.
   # Convert from routing variable Index to time matrix NodeIndex.
   from_node = manager.IndexToNode(from_index)
   to_node = manager.IndexToNode(to_index)
-
-  return Matrix[from_node][to_node] + Durations[from_node]
+  return int(Matrix[from_node][to_node] + Durations[from_node])
 
 # Create the routing index manager.
 # Start Depot is the index of the start of the first day i.e. 0.
