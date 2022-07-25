@@ -32,8 +32,9 @@ Windows = [
         [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600],
         [24200, 59600], [24200, 59600], [24200, 59600], [24200, 59600],
         ]
-
+VehicleNumber = 2;
 Durations = [0, 0, 0, 0, 0, 0, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 900, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 1800, 3600, 3600, 3600, 3600, 3600, 3600, 3600]
+SLAs = [0, 0, 0, 0, 0, 0, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3]
 
 max_int = one_day * NUM_DAYS
 Penalties = [
@@ -65,7 +66,7 @@ def transit_callback(from_index, to_index):
 # Create the routing index manager.
 # Start Depot is the index of the start of the first day i.e. 0.
 # End Depot is the index of the end of the last day i.e. (2*NUM_DAYS - 1).
-manager = pywrapcp.RoutingIndexManager(len(Matrix), 1, [0], [2*NUM_DAYS-1])
+manager = pywrapcp.RoutingIndexManager(len(Matrix), VehicleNumber, [0, 0], [2*NUM_DAYS-1, 2*NUM_DAYS-1])
 
 # Create Routing Model.
 routing = pywrapcp.RoutingModel(manager)
@@ -101,7 +102,7 @@ for location_index, time_window in enumerate(Windows):
     # Add the range between the start of the first day and the end of the last day
     time_dimension.CumulVar(index).SetRange(0, 86400 * NUM_DAYS)
 
-    for Day in range(NUM_DAYS):
+    for Day in range(SLAs[location_index]):
       day_start = Day * one_day
       day_end = day_start + one_day
       working_start = Windows[Day * 2][0]
@@ -125,20 +126,21 @@ for location_index, time_window in enumerate(Windows):
 #time_dimension.CumulVar(index).SetRange(
 #  Windows[1][0] + ((NUM_DAYS - 1) * 86400),
 #  Windows[1][1] + ((NUM_DAYS - 1) * 86400))
-
-for i in range(0,5):
-    if i == 0:
-        index = routing.Start(0)
-    elif i == 5:
-        index = routing.End(0)
-    else:
-        index = manager.NodeToIndex(i);
-    time_dimension.CumulVar(index).SetRange(Windows[i][0],Windows[i][1])
+for car in range(VehicleNumber):
+    for i in range(0, 5):
+        if i == 0:
+            index = routing.Start(car)
+        elif i == 5:
+            index = routing.End(car)
+        else:
+            index = manager.NodeToIndex(i)
+        time_dimension.CumulVar(index).SetRange(Windows[i][0], Windows[i][1])
 
 
 # Instantiate route start and end times to produce feasible times
-routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.Start(0)))
-routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.End(0)))
+for car in range(VehicleNumber):
+    routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.Start(car)))
+    routing.AddVariableMinimizedByFinalizer(time_dimension.CumulVar(routing.End(car)))
 
 # Setting first solution heuristic.
 search_parameters = pywrapcp.DefaultRoutingSearchParameters()
@@ -179,25 +181,26 @@ def time2date(time):
   return [days, hours, minutes, seconds]
 
 # Return the scheduled locations
-index = routing.Start(0)
-plan_output = 'Route for vehicle 0:\n'
-while not routing.IsEnd(index):
-  plan_output += f'{manager.IndexToNode(index)} '
-  time = time_dimension.CumulVar(index)
-  tw_min = solution.Min(time)
-  [days, hours, minutes, seconds] = time2date(tw_min)
-  plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
-  tw_max = solution.Max(time)
-  [days, hours, minutes, seconds] = time2date(tw_max)
-  plan_output += f'{days}d {hours}:{minutes}:{seconds}] -> '
-  index = solution.Value(routing.NextVar(index))
-  if manager.IndexToNode(index) < 2*NUM_DAYS and manager.IndexToNode(index) & 1 == 0:
-      plan_output += '\n\n'
-time = time_dimension.CumulVar(index)
-tw_min = solution.Min(time)
-[days, hours, minutes, seconds] = time2date(tw_min)
-plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
-tw_max = solution.Max(time)
-[days, hours, minutes, seconds] = time2date(tw_max)
-plan_output += f'{days}d {hours}:{minutes}:{seconds}]'
-print(plan_output)
+for car in range(VehicleNumber):
+    index = routing.Start(car)
+    plan_output = f'\nRoute for vehicle {car}:\n'
+    while not routing.IsEnd(index):
+      plan_output += f'{manager.IndexToNode(index)} '
+      time = time_dimension.CumulVar(index)
+      tw_min = solution.Min(time)
+      [days, hours, minutes, seconds] = time2date(tw_min)
+      plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
+      tw_max = solution.Max(time)
+      [days, hours, minutes, seconds] = time2date(tw_max)
+      plan_output += f'{days}d {hours}:{minutes}:{seconds}] -> '
+      index = solution.Value(routing.NextVar(index))
+      if manager.IndexToNode(index) < 2*NUM_DAYS and manager.IndexToNode(index) & 1 == 0:
+          plan_output += '\n\n'
+    time = time_dimension.CumulVar(index)
+    tw_min = solution.Min(time)
+    [days, hours, minutes, seconds] = time2date(tw_min)
+    plan_output += f'[{days}d {hours}:{minutes}:{seconds};'
+    tw_max = solution.Max(time)
+    [days, hours, minutes, seconds] = time2date(tw_max)
+    plan_output += f'{days}d {hours}:{minutes}:{seconds}]'
+    print(plan_output)
